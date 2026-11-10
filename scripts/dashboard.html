@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ECHORA · Live Wi-Fi Room Sensing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#060a14; --panel:rgba(9,18,34,.72); --edge:#12304a; --line:#37e6ff; --text:#d7ecff; --muted:#6f8aa3; --green:#52ffa8; --amber:#ffb347; --red:#ff5d73; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:radial-gradient(1400px 800px at 40% 0%, #0d1c34 0%, var(--bg) 65%); color:var(--text);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow:hidden; }
+  header { position:absolute; top:0; left:0; right:0; height:52px; padding:0 22px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #0e2338; }
+  .brand { letter-spacing:.32em; font-size:13px; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
+  .brand b { color:var(--line); font-weight:700; }
+  .badges { display:flex; gap:10px; align-items:center; }
+  .badge { font-size:12px; letter-spacing:.12em; padding:4px 12px; border-radius:999px; border:1px solid currentColor; text-transform:uppercase; white-space:nowrap; }
+  #clock { font-variant-numeric:tabular-nums; color:var(--muted); font-size:13px; margin-left:8px; }
+  main { position:absolute; top:52px; bottom:0; left:0; right:0; display:grid; grid-template-columns: minmax(0,1fr) 390px; gap:14px; padding:14px 18px 14px; }
+  .col { display:flex; flex-direction:column; gap:12px; min-height:0; min-width:0; }
+  .card { border:1px solid var(--edge); border-radius:14px; background:var(--panel); padding:10px 12px; min-height:0; min-width:0; display:flex; flex-direction:column; }
+  .card h3 { margin:0 0 6px; font-size:10.5px; letter-spacing:.26em; color:var(--muted); text-transform:uppercase; font-weight:600; display:flex; justify-content:space-between; align-items:center; }
+  .card h3 .tools button { background:transparent; color:var(--muted); border:1px solid #1b3a52; border-radius:6px; padding:2px 9px; margin-left:6px; font-size:10.5px; letter-spacing:.12em; cursor:pointer; text-transform:uppercase; }
+  .card h3 .tools button.on { color:var(--line); border-color:var(--line); }
+  .heatgrid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px; flex:1; min-height:0; }
+  .node { border:1px solid #0f2a42; border-radius:10px; padding:6px 8px; display:flex; flex-direction:column; min-height:0; background:rgba(5,12,24,.6); }
+  .nodehead { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:4px; letter-spacing:.06em; }
+  .nodehead b { color:var(--text); }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:#35516b; }
+  .node canvas { flex:1; min-height:0; width:100%; border-radius:6px; background:#050b16; }
+  .charts { display:grid; grid-template-columns:1fr 1fr; gap:12px; height:30%; min-height:150px; }
+  .chartwrap { flex:1; min-height:0; position:relative; }
+  .chartwrap canvas { position:absolute; inset:0; width:100%; height:100%; }
+  .legend { display:flex; gap:12px; font-size:11px; color:var(--muted); }
+  .legend i { display:inline-block; width:10px; height:3px; margin-right:5px; vertical-align:middle; border-radius:2px; }
+  .big { font-size:40px; font-weight:800; letter-spacing:.05em; line-height:1; transition:color .3s; }
+  .sub { color:var(--muted); font-size:13px; margin-top:6px; min-height:1.2em; }
+  .stage { height:300px; flex:none; position:relative; }
+  .stage svg { width:100%; height:100%; display:block; }
+  .bars { display:flex; flex-direction:column; gap:8px; }
+  .brow { display:grid; grid-template-columns:110px 1fr 46px; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
+  .brow .bar { height:9px; background:#0d2036; border-radius:5px; overflow:hidden; } .brow .bar i { display:block; height:100%; width:0; transition:width .35s; }
+  .brow span:last-child { color:var(--text); text-align:right; font-variant-numeric:tabular-nums; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; } th { color:var(--muted); font-weight:600; text-align:right; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; padding:2px 0 5px; } th:first-child,td:first-child { text-align:left; }
+  td { padding:3px 0; text-align:right; font-variant-numeric:tabular-nums; border-top:1px solid #0d2236; }
+  #banner { display:none; position:absolute; top:60px; left:50%; transform:translateX(-50%); z-index:10; padding:8px 22px; border-radius:10px; font-weight:700; letter-spacing:.14em; font-size:13px; text-transform:uppercase; }
+  .furn { stroke:#2a4d6b; stroke-width:6; stroke-linecap:round; fill:none; }
+  .bone { stroke:var(--line); stroke-width:6; stroke-linecap:round; fill:none; filter:drop-shadow(0 0 6px rgba(55,230,255,.7)); } .bone.far { opacity:.45; }
+  .joint { fill:#bff6ff; } .headc { fill:rgba(55,230,255,.12); stroke:var(--line); stroke-width:5; filter:drop-shadow(0 0 7px rgba(55,230,255,.8)); }
+  .grid line { stroke:#0f2740; stroke-width:1; }
+  .hint { font-size:10.5px; color:#35516b; margin-top:4px; }
+  @media (max-width:1100px) { main { grid-template-columns:1fr; overflow:auto; position:static; } html,body{overflow:auto;} }
+  @media (max-width:820px) {
+    html,body { height:auto; overflow:auto; }
+    header { position:static; height:auto; padding:10px 14px; flex-wrap:wrap; gap:6px; }
+    .brand { font-size:11px; letter-spacing:.18em; white-space:normal; }
+    main { position:static; display:flex; flex-direction:column; padding:10px; gap:10px; }
+    main > .col:last-child { order:-1; }
+    .col { min-height:auto; }
+    .card { flex:none !important; }
+    .stage { height:230px; }
+    .big { font-size:34px; }
+    .heatgrid { flex:none; grid-template-rows:none; }
+    .node canvas { flex:none; height:84px; }
+    .charts { grid-template-columns:1fr; height:auto; }
+    .chartwrap { flex:none; height:150px; }
+    #banner { top:8px; font-size:11px; padding:5px 12px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>ECHORA</b> &nbsp;·&nbsp; Wi-Fi room sensing &nbsp;·&nbsp; no camera, no identity</div>
+  <div class="badges"><span class="badge" id="modeBadge">connecting</span><span class="badge" id="chanBadge" style="color:#6f8aa3">channel –</span><span id="clock"></span></div>
+</header>
+<div id="banner"></div>
+<main>
+  <div class="col">
+    <section class="card" style="flex:1; min-height:0">
+      <h3><span>CSI amplitude · 4 sensor nodes · last 60 s</span>
+        <span class="tools"><button id="bChange" class="on">change</button><button id="bRaw">raw</button></span></h3>
+      <div class="heatgrid" id="heatgrid"></div>
+      <div class="hint">each row = one Wi-Fi subcarrier, each column = 0.25 s.  "change" shows how the signal moves away from its own average - bright bands = something moving in the room.</div>
+    </section>
+    <div class="charts">
+      <section class="card"><h3><span>Motion energy per node</span><span class="legend" id="legAct"></span></h3><div class="chartwrap"><canvas id="cvAct"></canvas></div></section>
+      <section class="card"><h3><span>Presence probability &amp; state</span><span class="legend"><span><i style="background:#6f8aa3"></i>empty</span><span><i style="background:#37e6ff"></i>sit</span><span><i style="background:#52ffa8"></i>stand</span></span></h3><div class="chartwrap"><canvas id="cvPres"></canvas></div></section>
+    </div>
+  </div>
+  <div class="col">
+    <section class="card stage"><svg viewBox="0 0 520 470" preserveAspectRatio="xMidYMid meet" id="svg">
+      <g class="grid" id="grid"></g>
+      <line x1="40" y1="425" x2="480" y2="425" stroke="#1b3a52" stroke-width="3"/>
+      <g id="furn" class="furn"><line x1="150" y1="318" x2="290" y2="318"/><line x1="150" y1="318" x2="150" y2="200"/><line x1="160" y1="318" x2="160" y2="425"/><line x1="280" y1="318" x2="280" y2="425"/></g>
+      <g id="fig"></g>
+      <text id="emptyTxt" x="260" y="250" text-anchor="middle" fill="#2c5a7a" font-size="26" letter-spacing="6" opacity="0">NO ONE IN THE BOOTH</text>
+    </svg></section>
+    <section class="card"><h3><span>Detected</span></h3><div class="big" id="label">…</div><div class="sub" id="sub"></div>
+      <div class="bars" style="margin-top:12px">
+        <div class="brow"><span>person</span><div class="bar"><i id="bPerson" style="background:#37e6ff"></i></div><span id="vPerson">–</span></div>
+        <div class="brow"><span>sitting</span><div class="bar"><i id="bSit" style="background:#37e6ff"></i></div><span id="vSit">–</span></div>
+        <div class="brow"><span>standing</span><div class="bar"><i id="bStand" style="background:#52ffa8"></i></div><span id="vStand">–</span></div>
+      </div>
+      <div class="hint">sitting / standing = probability given that a person is present</div>
+    </section>
+    <section class="card"><h3><span>Sensor nodes</span></h3>
+      <table><thead><tr><th>node</th><th>signal</th><th>packets/s</th><th>motion</th></tr></thead><tbody id="nodeRows"></tbody></table>
+      <div class="hint">keys (demo backup):  S sit · T stand · E empty · A back to live  -  a red banner shows whenever this is used</div>
+    </section>
+  </div>
+</main>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const NODES = [1,2,3,4], W = 240;   // W = number of 0.25 s bins shown in the line charts (60 s)
+const NCOL = {1:"#37e6ff", 2:"#52ffa8", 3:"#ffb347", 4:"#ff7ad9"};
+const store = { bins:new Map(), states:new Map(), maxIdx:0 };
+let seq = 0, epoch = null, latest = null, meta = { mode:"live", model_freq:null, seen_freq:null };
+let lastDataAt = 0, fetchOk = false, viewMode = "change", manual = null, dirty = true;
+
+// ---------------------------------------------------------------- colormaps
+const CM_DIV = [[0,[40,80,255]],[0.3,[20,60,150]],[0.5,[8,14,26]],[0.7,[175,95,20]],[1,[255,215,90]]];
+const CM_RAW = [[0,[10,10,40]],[0.25,[30,70,200]],[0.5,[30,200,200]],[0.75,[240,220,60]],[1,[255,90,40]]];
+function cmap(stops, t) {
+  t = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < stops.length; i++) if (t <= stops[i][0]) {
+    const a = stops[i-1], b = stops[i], u = (t - a[0]) / (b[0] - a[0] || 1);
+    return [a[1][0] + (b[1][0]-a[1][0])*u, a[1][1] + (b[1][1]-a[1][1])*u, a[1][2] + (b[1][2]-a[1][2])*u];
+  }
+  return stops[stops.length-1][1];
+}
+function buildLUT(stops) { const L = new Uint8Array(256*3); for (let i = 0; i < 256; i++) { const c = cmap(stops, i/255); L[i*3] = c[0]; L[i*3+1] = c[1]; L[i*3+2] = c[2]; } return L; }
+const LUT_DIV = buildLUT(CM_DIV), LUT_RAW = buildLUT(CM_RAW);
+
+// ---------------------------------------------------------------- build heatmap cards
+const COLBINS = 2, WC = 120;          // one heatmap column = 0.5 s, 120 columns = 60 s
+const heat = {};
+const hg = document.getElementById("heatgrid");
+NODES.forEach(n => {
+  const d = document.createElement("div"); d.className = "node";
+  d.innerHTML = '<div class="nodehead"><span><span class="dot" id="dot'+n+'"></span><b>NODE '+n+'</b></span><span id="nh'+n+'">–</span></div><canvas id="hc'+n+'"></canvas>';
+  hg.appendChild(d);
+  heat[n] = { cv:document.getElementById("hc"+n), off:document.createElement("canvas"), scale:null, cols:new Map(), ema:null, last:null };
+});
+document.getElementById("legAct").innerHTML = NODES.map(n => '<span><i style="background:'+NCOL[n]+'"></i>N'+n+'</span>').join("");
+
+function fit(cv) {
+  const dpr = window.devicePixelRatio || 1, w = Math.max(10, cv.clientWidth), h = Math.max(10, cv.clientHeight);
+  if (cv.width !== Math.round(w*dpr) || cv.height !== Math.round(h*dpr)) { cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr); }
+  return [cv.width, cv.height];
+}
+
+// merge 2 bins -> 1 column, smooth in time (EMA) and across neighbouring subcarriers
+function updateColumns(n) {
+  const H = heat[n], maxCol = Math.floor(store.maxIdx / COLBINS) - 1;
+  if (maxCol <= 0) return maxCol;
+  let j0 = H.last === null ? maxCol - WC + 1 : H.last + 1;
+  if (j0 < maxCol - WC + 1) j0 = maxCol - WC + 1;
+  for (let j = j0; j <= maxCol; j++) {
+    let sum = null, cnt = 0;
+    for (let k = 0; k < COLBINS; k++) {
+      const b = store.bins.get(j*COLBINS + k), e = b && b.n[n];
+      if (e) { if (!sum) sum = new Float32Array(128); for (let r = 0; r < 128; r++) sum[r] += e.c[r]; cnt++; }
+    }
+    if (!cnt) { H.cols.set(j, null); continue; }
+    for (let r = 0; r < 128; r++) sum[r] /= cnt;
+    if (!H.ema) H.ema = Float32Array.from(sum); else for (let r = 0; r < 128; r++) H.ema[r] = 0.5*H.ema[r] + 0.5*sum[r];
+    const sm = new Float32Array(128);
+    for (let r = 0; r < 128; r++) sm[r] = (H.ema[Math.max(0, r-1)] + 2*H.ema[r] + H.ema[Math.min(127, r+1)]) / 4;
+    H.cols.set(j, sm);
+  }
+  H.last = maxCol;
+  for (const k of H.cols.keys()) if (k < maxCol - WC) H.cols.delete(k);
+  return maxCol;
+}
+
+function drawHeat(n) {
+  const H = heat[n], cv = H.cv; const [cw, ch] = fit(cv); const ctx = cv.getContext("2d");
+  const maxCol = updateColumns(n), x0 = maxCol - WC + 1, cols = new Array(WC).fill(null);
+  let have = 0;
+  for (let x = 0; x < WC; x++) { const c = H.cols.get(x0 + x); if (c) { cols[x] = c; have++; } }
+  ctx.fillStyle = "#050b16"; ctx.fillRect(0, 0, cw, ch);
+  if (!have) return;
+  const mean = new Float32Array(128);
+  for (const c of cols) if (c) for (let k = 0; k < 128; k++) mean[k] += c[k];
+  for (let k = 0; k < 128; k++) mean[k] /= have;
+  const rows = []; for (let k = 0; k < 128; k++) if (mean[k] > 0.05) rows.push(k);
+  if (!rows.length) return;
+  // colour scale: 97th percentile of the change, tracked slowly so the picture stays calm
+  const samples = [];
+  for (let x = 0; x < WC; x++) { const c = cols[x]; if (!c) continue; for (let r = 0; r < rows.length; r += 3) samples.push(Math.abs(c[rows[r]] - mean[rows[r]])); }
+  samples.sort((a, b) => a - b);
+  const p97 = Math.max(0.03, samples[Math.floor(samples.length * 0.97)] || 0.05);
+  H.scale = H.scale === null ? p97 : 0.9 * H.scale + 0.1 * p97;
+  const off = H.off; if (off.width !== WC || off.height !== rows.length) { off.width = WC; off.height = rows.length; }
+  const octx = off.getContext("2d"), img = octx.createImageData(WC, rows.length), d = img.data;
+  const lut = viewMode === "change" ? LUT_DIV : LUT_RAW;
+  for (let x = 0; x < WC; x++) {
+    const c = cols[x];
+    for (let r = 0; r < rows.length; r++) {
+      const o = (r*WC + x) * 4;
+      if (!c) { d[o] = 5; d[o+1] = 11; d[o+2] = 22; d[o+3] = 255; continue; }
+      let t;
+      if (viewMode === "change") t = 0.5 + 0.5 * Math.max(-1, Math.min(1, (c[rows[r]] - mean[rows[r]]) / H.scale));
+      else t = Math.max(0, Math.min(1, (c[rows[r]] - 0.3) / 1.5));
+      const li = Math.round(t * 255) * 3;
+      d[o] = lut[li]; d[o+1] = lut[li+1]; d[o+2] = lut[li+2]; d[o+3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(off, 0, 0, cw, ch);
+}
+
+// ---------------------------------------------------------------- line charts
+function drawLines(cv, series, opt) {
+  const [cw, ch] = fit(cv), ctx = cv.getContext("2d"), dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cw, ch);
+  const L = 34*dpr, R = 6*dpr, T = 6*dpr, B = (opt.bottom || 8)*dpr, pw = cw - L - R, ph = ch - T - B;
+  let lo = opt.min, hi = opt.max;
+  if (opt.auto) {
+    const all = []; for (const s of series) for (const v of s.vals) if (isFinite(v)) all.push(v);
+    all.sort((a, b) => a - b); hi = Math.max(0.02, (all[Math.floor(all.length * 0.98)] || 0.02) * 1.3); lo = 0;
+  }
+  ctx.strokeStyle = "#0f2740"; ctx.lineWidth = 1; ctx.fillStyle = "#4b6b86"; ctx.font = (10*dpr) + "px sans-serif"; ctx.textAlign = "right";
+  for (let g = 0; g <= 2; g++) { const y = T + ph * g / 2; ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + pw, y); ctx.stroke(); ctx.fillText((hi - (hi - lo) * g / 2).toFixed(hi < 2 ? 2 : 0), L - 4*dpr, y + 3*dpr); }
+  if (opt.ref != null) { const y = T + ph * (1 - (opt.ref - lo) / (hi - lo)); ctx.setLineDash([4*dpr, 4*dpr]); ctx.strokeStyle = "#35516b"; ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + pw, y); ctx.stroke(); ctx.setLineDash([]); }
+  for (const s of series) {
+    ctx.strokeStyle = s.color; ctx.lineWidth = 1.8*dpr; ctx.beginPath(); let pen = false;
+    s.vals.forEach((v, i) => {
+      if (!isFinite(v)) { pen = false; return; }
+      const x = L + pw * i / (W - 1), y = T + ph * (1 - (v - lo) / (hi - lo || 1));
+      if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+  return { L, pw, T, ph, cw, ch, dpr };
+}
+const SCOL = { sit:"#37e6ff", stand:"#52ffa8", empty:"#6f8aa3", channel:"#ffb347" };
+function movavg(vals, k) {
+  return vals.map((v, i) => { let s = 0, c = 0; for (let j = Math.max(0, i - k + 1); j <= i; j++) if (isFinite(vals[j])) { s += vals[j]; c++; } return c ? s / c : NaN; });
+}
+function stateAt(idx) { return store.states.get(idx) || store.states.get(idx - 1) || null; }
+
+function drawCharts() {
+  const x0 = store.maxIdx - W + 1;
+  const act = NODES.map(n => ({ color:NCOL[n], vals:movavg(Array.from({length:W}, (_, x) => { const b = store.bins.get(x0 + x); return b && b.n[n] ? b.n[n].a : NaN; }), 6) }));
+  drawLines(document.getElementById("cvAct"), act, { auto:true });
+  const pv = { color:"#d7ecff", vals:movavg(Array.from({length:W}, (_, x) => { const s = stateAt(x0 + x); return s ? s.p : NaN; }), 6) };
+  const g = drawLines(document.getElementById("cvPres"), [pv], { min:0, max:1, ref:0.5, bottom:16 });
+  const ctx = document.getElementById("cvPres").getContext("2d"), y = g.T + g.ph + 4*g.dpr, bw = g.pw / W;
+  for (let x = 0; x < W; x++) { const s = stateAt(x0 + x); if (!s) continue; ctx.fillStyle = SCOL[s.v] || "#333"; ctx.fillRect(g.L + x*bw, y, Math.ceil(bw) + 1, 6*g.dpr); }
+}
+
+// ---------------------------------------------------------------- skeleton
+const POSES = {
+  standing: { head:[200,82], neck:[200,116], sh:[200,132], el:[196,190], wr:[205,242], hip:[200,242], kn:[203,330], an:[200,418], to:[228,418],
+              sh2:[205,132], el2:[214,186], wr2:[224,236], hip2:[205,242], kn2:[211,330], an2:[208,418], to2:[236,418] },
+  sitting:  { head:[190,150], neck:[192,184], sh:[194,200], el:[204,258], wr:[250,278], hip:[188,306], kn:[268,312], an:[272,418], to:[300,418],
+              sh2:[199,200], el2:[209,256], wr2:[256,274], hip2:[193,306], kn2:[276,310], an2:[280,418], to2:[308,418] }
+};
+const J = Object.keys(POSES.standing);
+const BONES = [["neck","sh"],["sh","el"],["el","wr"],["sh","hip"],["hip","kn"],["kn","an"],["an","to"],["sh2","el2"],["el2","wr2"],["sh2","hip2"],["hip2","kn2"],["kn2","an2"],["an2","to2"],["neck","head"]];
+const cur = {}; J.forEach(k => cur[k] = POSES.standing[k].slice());
+let poseTarget = "standing", figOp = 0, figTarget = 0, furnOp = 0, furnTarget = 0;
+const grid = document.getElementById("grid");
+for (let x = 40; x <= 480; x += 40) { const l = document.createElementNS(NS, "line"); l.setAttribute("x1", x); l.setAttribute("x2", x); l.setAttribute("y1", 20); l.setAttribute("y2", 425); grid.appendChild(l); }
+for (let y = 20; y <= 425; y += 40) { const l = document.createElementNS(NS, "line"); l.setAttribute("x1", 40); l.setAttribute("x2", 480); l.setAttribute("y1", y); l.setAttribute("y2", y); grid.appendChild(l); }
+const fig = document.getElementById("fig");
+const boneEls = BONES.map(([a, b]) => { const l = document.createElementNS(NS, "line"); l.setAttribute("class", "bone" + ((a.endsWith("2") || b.endsWith("2")) ? " far" : "")); fig.appendChild(l); return l; });
+const headC = document.createElementNS(NS, "circle"); headC.setAttribute("class", "headc"); headC.setAttribute("r", 24); fig.appendChild(headC);
+const jointEls = ["sh","el","wr","hip","kn","an"].map(k => { const c = document.createElementNS(NS, "circle"); c.setAttribute("class", "joint"); c.setAttribute("r", 5); c.dataset.k = k; fig.appendChild(c); return c; });
+const t0 = performance.now();
+function animate(now) {
+  const t = (now - t0) / 1000, P = POSES[poseTarget] || POSES.standing;
+  for (const k of J) { cur[k][0] += (P[k][0] - cur[k][0]) * 0.10; cur[k][1] += (P[k][1] - cur[k][1]) * 0.10; }
+  figOp += (figTarget - figOp) * 0.08; furnOp += (furnTarget - furnOp) * 0.08;
+  const sway = Math.sin(t * 1.6) * 1.6, br = Math.sin(t * 2.2) * 0.8;
+  const pos = k => { let [x, y] = cur[k]; if (k === "head" || k === "neck" || k === "sh" || k === "sh2") { x += sway; y += br; } return [x, y]; };
+  BONES.forEach(([a, b], i) => { const A = pos(a), B = pos(b), l = boneEls[i]; l.setAttribute("x1", A[0]); l.setAttribute("y1", A[1]); l.setAttribute("x2", B[0]); l.setAttribute("y2", B[1]); });
+  const Hh = pos("head"); headC.setAttribute("cx", Hh[0]); headC.setAttribute("cy", Hh[1]);
+  jointEls.forEach(c => { const p = pos(c.dataset.k); c.setAttribute("cx", p[0]); c.setAttribute("cy", p[1]); });
+  fig.setAttribute("opacity", figOp.toFixed(3));
+  document.getElementById("furn").setAttribute("opacity", furnOp.toFixed(3));
+  document.getElementById("emptyTxt").setAttribute("opacity", ((1 - figOp) * 0.9).toFixed(3));
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+// ---------------------------------------------------------------- state display
+const LABELS = {
+  sit:    { text:"SITTING",  color:"#37e6ff", sub:"A person is seated",        pose:"sitting",  fig:1 },
+  stand:  { text:"STANDING", color:"#52ffa8", sub:"A person is standing",      pose:"standing", fig:1 },
+  empty:  { text:"EMPTY",    color:"#8ba3b8", sub:"No one detected in the booth", pose:"standing", fig:0 },
+  channel:{ text:"RECALIBRATE", color:"#ffb347", sub:"Radio channel changed - model no longer matches", pose:"standing", fig:0 },
+  nodata: { text:"NO DATA",  color:"#ff5d73", sub:"No packets from the sensors", pose:"standing", fig:0 }
+};
+const pct = v => (v == null ? "–" : Math.round(v * 100) + "%");
+function setBar(id, vid, v) { document.getElementById(id).style.width = (v == null ? 0 : Math.round(v * 100)) + "%"; document.getElementById(vid).textContent = pct(v); }
+
+function updatePanel() {
+  const stale = !fetchOk || (performance.now() - lastDataAt > 3500);
+  let name, L, p = null, ps = null, pt = null;
+  if (manual) { name = manual; p = manual === "empty" ? 0.04 : 0.95; ps = manual === "sit" ? 0.95 : 0.05; pt = manual === "stand" ? 0.95 : 0.05; }
+  else if (stale || !latest) name = "nodata";
+  else { name = latest.v; p = latest.p; ps = latest.ps; pt = latest.pt; }
+  L = LABELS[name] || LABELS.nodata;
+  const lab = document.getElementById("label"); lab.textContent = L.text; lab.style.color = L.color;
+  document.getElementById("sub").textContent = L.sub;
+  poseTarget = L.pose; figTarget = L.fig; furnTarget = (L.pose === "sitting" && L.fig) ? 1 : (L.fig ? 0.25 : 0);
+  setBar("bPerson", "vPerson", p); setBar("bSit", "vSit", name === "empty" ? null : ps); setBar("bStand", "vStand", name === "empty" ? null : pt);
+
+  const mb = document.getElementById("modeBadge");
+  if (manual) { mb.textContent = "manual demo"; mb.style.color = "#ff5d73"; }
+  else if (stale) { mb.textContent = fetchOk ? "no data" : "offline"; mb.style.color = "#ff5d73"; }
+  else if (meta.mode === "replay") { mb.textContent = "replay of recorded data"; mb.style.color = "#ffb347"; }
+  else { mb.textContent = "live"; mb.style.color = "#52ffa8"; }
+  const cb = document.getElementById("chanBadge"), sf = meta.seen_freq, mf = meta.model_freq;
+  cb.textContent = "channel " + (sf ? sf + " MHz" : "–"); cb.style.color = (sf && mf && sf !== mf) ? "#ffb347" : "#6f8aa3";
+
+  const bn = document.getElementById("banner");
+  if (manual) { bn.style.display = "block"; bn.style.background = "#ff5d73"; bn.style.color = "#200"; bn.textContent = "MANUAL OVERRIDE - not live sensing"; }
+  else if (meta.mode === "replay") { bn.style.display = "block"; bn.style.background = "#ffb347"; bn.style.color = "#210"; bn.textContent = "REPLAY of recorded data - not live"; }
+  else bn.style.display = "none";
+
+  const rows = NODES.map(n => {
+    let r = 0, f = 0, a = 0, c = 0;
+    for (let i = store.maxIdx; i > store.maxIdx - 8; i--) { const b = store.bins.get(i), q = b && b.n[n]; if (q) { r += q.r; f += q.f; a += q.a; c++; } }
+    const e = c ? { r:r/c, f:f/c, a:a/c } : null;
+    const ok = e && e.f > 20;
+    const nh = document.getElementById("nh" + n), dot = document.getElementById("dot" + n);
+    nh.textContent = e ? Math.round(e.r) + " dBm · " + Math.round(e.f) + " pkt/s" : "no data";
+    dot.style.background = ok ? "#52ffa8" : "#ff5d73";
+    return '<tr><td><span class="dot" style="background:' + (ok ? NCOL[n] : "#ff5d73") + '"></span>Node ' + n + '</td><td>' + (e ? Math.round(e.r) + ' dBm' : '–') + '</td><td>' + (e ? Math.round(e.f) : '–') + '</td><td>' + (e ? e.a.toFixed(3) : '–') + '</td></tr>';
+  }).join("");
+  document.getElementById("nodeRows").innerHTML = rows;
+}
+
+// ---------------------------------------------------------------- data polling
+function ingest(d) {
+  if (epoch !== null && d.epoch !== epoch) {
+    store.bins.clear(); store.states.clear(); store.maxIdx = 0; seq = 0;
+    NODES.forEach(n => { heat[n].cols.clear(); heat[n].ema = null; heat[n].last = null; heat[n].scale = null; });
+  }
+  epoch = d.epoch;
+  meta = { mode:d.mode, model_freq:d.model_freq, seen_freq:d.seen_freq };
+  for (const b of d.bins) { store.bins.set(b.i, b); if (b.i > store.maxIdx) store.maxIdx = b.i; }
+  for (const s of d.states) { store.states.set(s.i, s); if (s.i > store.maxIdx) store.maxIdx = s.i; }
+  const cut = store.maxIdx - 960;
+  for (const k of store.bins.keys()) if (k < cut) store.bins.delete(k);
+  for (const k of store.states.keys()) if (k < cut) store.states.delete(k);
+  if (d.latest) latest = d.latest;
+  if (d.bins.length || d.states.length) { lastDataAt = performance.now(); dirty = true; }
+  seq = Math.max(seq, d.seq || 0);
+}
+async function poll() {
+  try {
+    const r = await fetch("/api?since=" + seq, { cache:"no-store" });
+    ingest(await r.json()); fetchOk = true;
+  } catch (e) { fetchOk = false; }
+  updatePanel();
+}
+function render() { if (dirty) { dirty = false; NODES.forEach(drawHeat); drawCharts(); } }
+setInterval(poll, 500); poll();
+setInterval(render, 500);
+setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString(); }, 500);
+document.getElementById("bChange").onclick = () => { viewMode = "change"; document.getElementById("bChange").className = "on"; document.getElementById("bRaw").className = ""; dirty = true; };
+document.getElementById("bRaw").onclick = () => { viewMode = "raw"; document.getElementById("bRaw").className = "on"; document.getElementById("bChange").className = ""; dirty = true; };
+addEventListener("resize", () => { dirty = true; });
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if (k === "s") manual = "sit"; else if (k === "t") manual = "stand"; else if (k === "e") manual = "empty"; else if (k === "a") manual = null;
+  updatePanel();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+data/
+models/
+*.pt
+*.joblib
+*.jsonl
+*.csv
+.venv*/
+__pycache__/
+*.bak
+*.prepatch

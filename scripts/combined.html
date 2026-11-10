@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ECHORA × RuView</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --line:#37e6ff; --text:#d7ecff; --muted:#7f9bb4; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#050810; color:var(--text); font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow:hidden; }
+  iframe { position:absolute; inset:0; width:100%; height:100%; border:0; background:#050810; }
+  #bar { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:20; display:flex; gap:6px; padding:5px 8px; border-radius:10px; background:rgba(5,12,24,.86); border:1px solid #12304a; backdrop-filter:blur(6px); }
+  #bar button { background:transparent; color:var(--muted); border:1px solid #1b3a52; border-radius:7px; padding:4px 11px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; }
+  #bar button.on { color:var(--line); border-color:var(--line); }
+  #panel { position:absolute; right:14px; bottom:14px; width:330px; z-index:20; border-radius:16px; border:1px solid #14405f; background:rgba(5,12,24,.88); backdrop-filter:blur(8px); padding:12px 14px; box-shadow:0 6px 40px rgba(0,0,0,.6); }
+  #panel h4 { margin:0 0 8px; font-size:10.5px; letter-spacing:.26em; color:var(--muted); text-transform:uppercase; display:flex; justify-content:space-between; align-items:center; }
+  .badge { font-size:10.5px; letter-spacing:.12em; padding:2px 9px; border-radius:999px; border:1px solid currentColor; }
+  .row { display:flex; gap:12px; align-items:center; }
+  #mini { width:110px; height:130px; flex:none; }
+  .big { font-size:30px; font-weight:800; letter-spacing:.05em; line-height:1.05; transition:color .3s; }
+  .sub { font-size:12px; color:var(--muted); margin-top:4px; min-height:1.2em; }
+  .brow { display:grid; grid-template-columns:62px 1fr 38px; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:5px; }
+  .bar { height:7px; background:#0d2036; border-radius:4px; overflow:hidden; } .bar i { display:block; height:100%; width:0; transition:width .35s; }
+  .brow span:last-child { color:var(--text); text-align:right; font-variant-numeric:tabular-nums; }
+  .note { font-size:10px; color:#46647d; margin-top:8px; line-height:1.35; }
+  #banner { display:none; position:absolute; top:52px; left:50%; transform:translateX(-50%); z-index:30; padding:6px 20px; border-radius:9px; font-weight:700; letter-spacing:.14em; font-size:12px; text-transform:uppercase; }
+  #hint { position:absolute; left:14px; bottom:10px; z-index:15; font-size:11px; color:#5a7792; max-width:420px; }
+  .bone { stroke:var(--line); stroke-width:7; stroke-linecap:round; fill:none; } .bone.far { opacity:.45; }
+  .headc { fill:rgba(55,230,255,.12); stroke:var(--line); stroke-width:6; } .furn { stroke:#2a4d6b; stroke-width:7; stroke-linecap:round; fill:none; }
+</style>
+</head>
+<body>
+<iframe id="frame" src="about:blank" title="RuView"></iframe>
+<div id="bar">
+  <button data-src="http://localhost:3000/ui/observatory.html" class="on">Observatory</button>
+  <button data-src="http://localhost:3000/ui/index.html#sensing">Sensing</button>
+  <button data-src="http://localhost:3000/ui/pose-fusion.html">Pose fusion</button>
+  <button data-src="/">ECHORA dashboard</button>
+  <button id="toggle">Hide panel</button>
+</div>
+<div id="banner"></div>
+<div id="hint">If the RuView background is blank: start the container, or the page may need the internet for its 3D library - open it in another window to see its error messages.</div>
+<div id="panel">
+  <h4><span>ECHORA · posture model</span><span class="badge" id="mode">…</span></h4>
+  <div class="row">
+    <svg id="mini" viewBox="120 40 220 400" preserveAspectRatio="xMidYMid meet">
+      <line x1="130" y1="425" x2="330" y2="425" stroke="#1b3a52" stroke-width="3"/>
+      <g id="furn" class="furn"><line x1="150" y1="318" x2="290" y2="318"/><line x1="150" y1="318" x2="150" y2="200"/><line x1="160" y1="318" x2="160" y2="425"/><line x1="280" y1="318" x2="280" y2="425"/></g>
+      <g id="fig"></g>
+    </svg>
+    <div style="flex:1; min-width:0"><div class="big" id="label">…</div><div class="sub" id="sub"></div></div>
+  </div>
+  <div class="brow"><span>person</span><div class="bar"><i id="bP" style="background:#37e6ff"></i></div><span id="vP">–</span></div>
+  <div class="brow"><span>sitting</span><div class="bar"><i id="bS" style="background:#37e6ff"></i></div><span id="vS">–</span></div>
+  <div class="brow"><span>standing</span><div class="bar"><i id="bT" style="background:#52ffa8"></i></div><span id="vT">–</span></div>
+  <div class="note">Sitting / standing / empty comes from the ECHORA classifier trained on our own recordings. The 3D scene and the other numbers behind this panel come from the RuView server.</div>
+</div>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const frame = document.getElementById("frame");
+let userHidden = false, curSrc = "";
+function applyPanel() { document.getElementById("panel").style.display = (userHidden || curSrc === "/") ? "none" : "block"; }
+function go(src) { curSrc = src; frame.src = src; document.querySelectorAll("#bar button[data-src]").forEach(b => b.className = b.dataset.src === src ? "on" : ""); applyPanel(); }
+document.querySelectorAll("#bar button[data-src]").forEach(b => b.onclick = () => go(b.dataset.src));
+document.getElementById("toggle").onclick = e => { userHidden = !userHidden; applyPanel(); e.target.textContent = userHidden ? "Show panel" : "Hide panel"; };
+go(new URLSearchParams(location.search).get("src") || "http://localhost:3000/ui/observatory.html");
+
+const POSES = {
+  standing: { head:[200,82], neck:[200,116], sh:[200,132], el:[196,190], wr:[205,242], hip:[200,242], kn:[203,330], an:[200,418], to:[228,418], sh2:[205,132], el2:[214,186], wr2:[224,236], hip2:[205,242], kn2:[211,330], an2:[208,418], to2:[236,418] },
+  sitting:  { head:[190,150], neck:[192,184], sh:[194,200], el:[204,258], wr:[250,278], hip:[188,306], kn:[268,312], an:[272,418], to:[300,418], sh2:[199,200], el2:[209,256], wr2:[256,274], hip2:[193,306], kn2:[276,310], an2:[280,418], to2:[308,418] }
+};
+const J = Object.keys(POSES.standing);
+const BONES = [["neck","sh"],["sh","el"],["el","wr"],["sh","hip"],["hip","kn"],["kn","an"],["an","to"],["sh2","el2"],["el2","wr2"],["sh2","hip2"],["hip2","kn2"],["kn2","an2"],["an2","to2"],["neck","head"]];
+const cur = {}; J.forEach(k => cur[k] = POSES.standing[k].slice());
+let target = "standing", figOp = 0, figT = 0, furnOp = 0, furnT = 0;
+const fig = document.getElementById("fig");
+const boneEls = BONES.map(([a, b]) => { const l = document.createElementNS(NS, "line"); l.setAttribute("class", "bone" + ((a.endsWith("2") || b.endsWith("2")) ? " far" : "")); fig.appendChild(l); return l; });
+const headC = document.createElementNS(NS, "circle"); headC.setAttribute("class", "headc"); headC.setAttribute("r", 24); fig.appendChild(headC);
+function animate() {
+  const P = POSES[target];
+  for (const k of J) { cur[k][0] += (P[k][0] - cur[k][0]) * 0.1; cur[k][1] += (P[k][1] - cur[k][1]) * 0.1; }
+  figOp += (figT - figOp) * 0.08; furnOp += (furnT - furnOp) * 0.08;
+  BONES.forEach(([a, b], i) => { const l = boneEls[i]; l.setAttribute("x1", cur[a][0]); l.setAttribute("y1", cur[a][1]); l.setAttribute("x2", cur[b][0]); l.setAttribute("y2", cur[b][1]); });
+  headC.setAttribute("cx", cur.head[0]); headC.setAttribute("cy", cur.head[1]);
+  fig.setAttribute("opacity", figOp.toFixed(3)); document.getElementById("furn").setAttribute("opacity", furnOp.toFixed(3));
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+const LABELS = {
+  sit:    { text:"SITTING",  color:"#37e6ff", sub:"A person is seated",   pose:"sitting",  fig:1 },
+  stand:  { text:"STANDING", color:"#52ffa8", sub:"A person is standing", pose:"standing", fig:1 },
+  empty:  { text:"EMPTY",    color:"#8ba3b8", sub:"No one in the booth",  pose:"standing", fig:0 },
+  channel:{ text:"RECALIBRATE", color:"#ffb347", sub:"Radio channel changed", pose:"standing", fig:0 },
+  nodata: { text:"NO DATA",  color:"#ff5d73", sub:"No packets from the sensors", pose:"standing", fig:0 }
+};
+const pct = v => (v == null ? "–" : Math.round(v * 100) + "%");
+function bar(id, vid, v) { document.getElementById(id).style.width = (v == null ? 0 : Math.round(v * 100)) + "%"; document.getElementById(vid).textContent = pct(v); }
+let latest = null, mode = "live", lastChange = 0, lastI = null, fetchOk = false, manual = null;
+
+function show() {
+  const stale = !fetchOk || (performance.now() - lastChange > 3500);
+  let name, p = null, ps = null, pt = null;
+  if (manual) { name = manual; p = manual === "empty" ? 0.04 : 0.95; ps = manual === "sit" ? 0.95 : 0.05; pt = manual === "stand" ? 0.95 : 0.05; }
+  else if (stale || !latest) name = "nodata";
+  else { name = latest.v; p = latest.p; ps = latest.ps; pt = latest.pt; }
+  const L = LABELS[name] || LABELS.nodata;
+  const lab = document.getElementById("label"); lab.textContent = L.text; lab.style.color = L.color;
+  document.getElementById("sub").textContent = L.sub;
+  target = L.pose; figT = L.fig; furnT = (L.pose === "sitting" && L.fig) ? 1 : (L.fig ? 0.25 : 0);
+  bar("bP", "vP", p); bar("bS", "vS", name === "empty" ? null : ps); bar("bT", "vT", name === "empty" ? null : pt);
+  const m = document.getElementById("mode");
+  if (manual) { m.textContent = "manual demo"; m.style.color = "#ff5d73"; }
+  else if (stale) { m.textContent = fetchOk ? "no data" : "offline"; m.style.color = "#ff5d73"; }
+  else if (mode === "replay") { m.textContent = "replay"; m.style.color = "#ffb347"; }
+  else { m.textContent = "live"; m.style.color = "#52ffa8"; }
+  const bn = document.getElementById("banner");
+  if (manual) { bn.style.display = "block"; bn.style.background = "#ff5d73"; bn.style.color = "#200"; bn.textContent = "MANUAL OVERRIDE - not live sensing"; }
+  else if (mode === "replay") { bn.style.display = "block"; bn.style.background = "#ffb347"; bn.style.color = "#210"; bn.textContent = "ECHORA panel: REPLAY of recorded data"; }
+  else bn.style.display = "none";
+}
+async function poll() {
+  try {
+    const r = await fetch("/api?since=9007199254740991", { cache:"no-store" });
+    const d = await r.json(); fetchOk = true; mode = d.mode;
+    if (d.latest) { latest = d.latest; if (d.latest.i !== lastI) { lastI = d.latest.i; lastChange = performance.now(); } }
+  } catch (e) { fetchOk = false; }
+  show();
+}
+setInterval(poll, 400); poll();
+addEventListener("keydown", e => { const k = e.key.toLowerCase(); if (k === "s") manual = "sit"; else if (k === "t") manual = "stand"; else if (k === "e") manual = "empty"; else if (k === "a") manual = null; show(); });
+</script>
+</body>
+</html>
