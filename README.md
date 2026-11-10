@@ -4,6 +4,8 @@ Privacy-first human activity sensing using Wi-Fi Channel State Information (CSI)
 No camera is used at runtime, so nobody's face or identity is ever captured.
 ECHORA currently detects **sitting vs standing** and **room presence** live, using only Wi-Fi signals.
 
+**Phase 1 (this release):** sitting/standing and presence detection. **Phase 2 (planned):** full-body skeleton tracking for multiple people. See [Roadmap](#roadmap).
+
 ECHORA uses the ESP32 CSI firmware from [RuView](https://github.com/ruvnet/RuView) by rUv (MIT licensed).
 The capture, training, live prediction and dashboard scripts in this repo are original work.
 
@@ -91,17 +93,27 @@ movement data of real people. Record your own with `calibrate.sh`.
 
 ## Roadmap
 
+### Phase 1: Posture and presence (current release)
+
 | Status | Item |
 |--------|------|
 | Done | Raw CSI capture over UDP from 4 ESP32 nodes |
 | Done | Sitting / standing and presence detection, single person |
 | Done | Live dashboard and one-command calibration |
 | Done | Feature-set comparison (full / compact / motion) |
-| In progress | Room zone detection (where in the room the person is) |
-| In progress | Live skeleton estimation from CSI (camera-derived labels used only for training, never at runtime) |
-| Planned | Fine-tuning from pretrained pose weights instead of training from scratch |
-| Planned | Multi-person support |
-| Planned | More activities beyond sitting and standing |
+
+### Phase 2: Real skeletons, multiple people (planned)
+
+The next step is to move from a single posture label to a real skeleton:
+
+- **17-keypoint skeleton** (COCO-style body structure) estimated from Wi-Fi CSI, showing full body movements rather than just sitting or standing
+- **Multi-person support**: track and draw more than one person in the room at the same time
+- **Privacy stays the core idea:** camera-derived pose labels (e.g. MediaPipe) are used only to create training data, never at runtime. The live system uses Wi-Fi only
+- Fine-tuning from pretrained pose weights instead of training from scratch
+- More activities beyond sitting and standing
+- Room zone detection (where in the room each person is)
+
+Phase 2 is a work in progress. The skeleton output is experimental and not reliable yet.
 
 ## Known issues
 
